@@ -32,7 +32,6 @@ You can try this out yourself too: to obtain these data, you must first obtain a
 getwd()
 ```
 
-
 ##  Load data and packages 
 
 Before proceeding, we'll load the remaining packages we will need for this exercise.
@@ -458,7 +457,62 @@ ggplot(edbf_counts_both, aes(year, sum_wom / year_total, group=genre, color=genr
 2. Choose another set of terms by which to filter (e.g., race-related words) and plot their frequency over time.
 
 ```{r}
-# show me
+evdes_genre <- edbfdata %>%
+  select(description, year, genre) 
+
+evtsperyr_genre <- evdes_genre %>%
+  mutate(obs=1) %>%
+  group_by(year, genre) %>% 
+  summarise(sum_events = sum(obs))
+
+tidy_des_genre <- evdes_genre %>% 
+  mutate(desc = tolower(description)) %>%
+  unnest_tokens(word, desc) %>%
+  filter(str_detect(word, "[a-z]"))
+
+tidy_des_genre <- tidy_des_genre %>%
+  filter(!word %in% stop_words$word) %>%
+  filter(!word %in% remove_reg)
+
+edbf_term_counts_genre <- tidy_des_genre %>% 
+  group_by(year, genre) %>% # group not only by year but also by genre
+  count(word, sort = TRUE)
+
+edbf_term_counts_genre $racword <- as.integer(grepl("race|ethnicity|racism|discrimination|black|white|asian|latino|hispanic|indigenous", 
+                                            x = edbf_term_counts_genre$word))
+
+edbf_counts_children <- edbf_term_counts_genre %>%
+  filter(genre == "Children") %>% 
+  group_by(year) %>%
+  mutate(year_total = sum(n)) %>%
+  filter(racword==1) %>%
+  summarise(sum_rac = sum(n),
+            year_total= min(year_total))
+
+ggplot(edbf_counts_children, aes(year, sum_rac / year_total, group=1)) +
+  geom_line() +
+  xlab("Year") +
+  ylab("% race-related words") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = c(0, 0), limits = c(0, NA)) +
+  theme_tufte(base_family = "Helvetica") 
+```
+
+```{r}
+edbf_counts_both <- edbf_term_counts_genre %>%
+  group_by(year, genre) %>% 
+  mutate(year_total = sum(n)) %>%
+  filter(racword==1) %>%
+  summarise(sum_rac = sum(n),
+            year_total= min(year_total))
+
+ggplot(edbf_counts_both, aes(year, sum_rac / year_total, group=genre, color=genre)) + # add the variable 'genre' as a group and color argument
+  geom_line() +
+  xlab("Year") +
+  ylab("% race-related words") +
+  scale_y_continuous(labels = scales::percent_format(),
+                     expand = c(0, 0), limits = c(0, NA)) +
+  theme_tufte(base_family = "Helvetica") 
 ```
 
 
